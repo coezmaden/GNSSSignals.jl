@@ -14,3 +14,14 @@ function GPSL1()
     codes = read_in_codes(joinpath(Base.Pkg.dir("GNSSSignals"), "data/codes_gps_l1.bin"), code_length)
     GPSL1(codes, code_length, 1023e3, 1.57542e9)
 end
+
+function read_real_signal(filename, length_to_read)
+    file_stats = stat(filename)
+    #num_samples = floor(Int, file_stats.size / 4)
+    signal_interleaved = open(filename) do file_stream
+        read(file_stream, Float32; all=true)
+    end
+    signal = Complex64(signal_interleaved[1:2:end], signal_interleaved[2:2:end])
+    signal_interleaved = nothing; #'clear' the variable
+    gc() # run garbage collector so memory gets cleared
+end
