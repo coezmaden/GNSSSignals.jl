@@ -62,7 +62,7 @@ julia> get_code_frequency(GPSL1)
 ```
 """
 @inline function get_code_frequency(::Type{GPSL1})
-    1_023_000_0Hz
+    10_230_000Hz
 end
 
 """
