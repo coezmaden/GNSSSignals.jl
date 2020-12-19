@@ -5,10 +5,12 @@ module GNSSSignals
         LoopVectorization,
         StructArrays,
         Statistics,
-        FixedPointSinCosApproximations,
-        CUDA
+        FixedPointSinCosApproximations
 
     using Unitful: Hz
+    using CUDA
+    const use_gpu = Ref(false) # assume no GPU if not initialized
+    const GPS_CA_CODES_GPU = Ref(CuArray{ComplexF32}(undef, 1026, 37))
 
     export
         AbstractGNSSSystem,
@@ -33,39 +35,29 @@ module GNSSSignals
         min_bits_for_code_length,
         length
 
-    const use_gpu = CUDA.functional()
 
-    abstract type AbstractGNSSSystem{T} end
+    abstract type AbstractGNSSSystem end
 
-    struct GPSL1{T} <: AbstractGNSSSystem{T} 
-        codes::T
+    struct GPSL1 <: AbstractGNSSSystem end
+
+    struct GPSL5 <: AbstractGNSSSystem end
+
+    struct GalileoE1B <: AbstractGNSSSystem end
+
+    function __init__()
+        use_gpu[] = CUDA.functional()
+        if use_gpu[]
+            @info "Found CUDA. Activating GPU signal processing. Call GNSSSignals.use_gpu[] = Ref(false) to override this."
+            GPS_CA_CODES_GPU[] = CuArray(extend_front_and_back(read_in_codes(
+                joinpath(dirname(pathof(GNSSSignals)), "..", "data", "codes_gps_l1.bin"),
+                37,
+                1023
+            )))
+            #TODO every other GNSS
+        else
+            @warn "CUDA not functional. Using solely CPU signal processing."
+        end
     end
-
-    function GPSL1()
-        GPSL1(
-            extend_front_and_back(read_in_codes(
-            joinpath(dirname(pathof(GNSSSignals)), "..", "data", "codes_gps_l1.bin"),
-            37,
-            1023
-            ))
-        )
-    end
-
-    # temp function for benchmarking
-    function GPSL1(gpsl1::GPSL1)
-        GPSL1(
-            Array(Int16.(gpsl1.codes))
-        )
-    end
-
-    struct GPSL5{T} <: AbstractGNSSSystem{T} 
-        codes::T
-    end
-
-    struct GalileoE1B{T} <: AbstractGNSSSystem{T} 
-        codes::T
-    end
-
 
     """
     $(SIGNATURES)
@@ -81,7 +73,7 @@ module GNSSSignals
         code_int8 = open(filename) do file_stream
             read!(file_stream, Array{Int8}(undef, code_length, num_prns))
         end
-        use_gpu ? CuArray{ComplexF32}(code_int8) : Int16.(code_int8)
+        Int16.(code_int8)
     end
 
     function extend_front_and_back(codes)

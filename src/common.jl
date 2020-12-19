@@ -7,14 +7,14 @@ julia> get_code(GPSL1, 1200.3, 1)
 ```
 """
 Base.@propagate_inbounds function get_code(
-    system::AbstractGNSSSystem{T},
+    ::Type{T},
     phase,
     prn::Integer
 ) where T
     floored_phase = floor(Int, phase)
     get_code_unsafe(
-        system::AbstractGNSSSystem,
-        mod(floored_phase, get_code_length(system) * get_secondary_code_length(system)),
+        T,
+        mod(floored_phase, get_code_length(T) * get_secondary_code_length(T)),
         prn
     )
 end
